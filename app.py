@@ -23,18 +23,36 @@ df = pd.read_csv('computer_security.csv', parse_dates=['date'])
 df = df.loc[df.f < 250_000]
 ips = [df.loc[df.l_ipn == i] for i in df.l_ipn.unique()]
 
-app.layout = html.Div([
 
-    # Interval Component
-    dcc.Interval(id='interval',
-                 n_intervals=0,
-                 interval=1_000,
-                 max_intervals=df.date.nunique() // 3),
+def serve_layout():
+    layout = html.Div([
+             # Interval Component
+             dcc.Interval(id='interval',
+                          n_intervals=0,
+                          interval=1_000,
+                          max_intervals=df.date.nunique() // 3),
 
-    # Div containing graphs.
-    html.Div(id='g1')
+             # Div containing graphs.
+             html.Div(id='g1')
+    ])
 
-])
+    return layout
+
+
+app.layout = serve_layout
+
+# app.layout = html.Div([
+#
+#     # Interval Component
+#     dcc.Interval(id='interval',
+#                  n_intervals=0,
+#                  interval=1_000,
+#                  max_intervals=df.date.nunique() // 3),
+#
+#     # Div containing graphs.
+#     html.Div(id='g1')
+#
+# ])
 
 
 @app.callback(Output('g1', 'children'),
@@ -80,14 +98,16 @@ def update_g1(n_intervals):
         # Detect outliers and change color.
         recent = 2*interval_scalar
         if y[-recent:].max() > (10 + y.min()) * 100:
-            color = 'red'
+            line_color = 'rgba(193, 66, 66, 1)'
+            fill_color = 'rgba(193, 66, 66, .8)'
             trace2 = go.Scatter(
                             x=x[-recent:],
                             y=y[-recent:],
                             fill='tozeroy',
                             mode='lines',
                             line={'width': 3,
-                                  'color': color}
+                                  'color': line_color},
+                            fillcolor=fill_color
                             )
             traces.append(trace2)
 
@@ -95,6 +115,7 @@ def update_g1(n_intervals):
                       height=400,
                       xaxis={'title': 'Date'},
                       yaxis={'title': 'Total Flows'},
+                      showlegend=False
                       )
 
         graph = dcc.Graph(
