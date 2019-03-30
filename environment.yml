@@ -1,0 +1,13 @@
+name: anomaly_app
+dependencies:
+  - python=3.6
+  - pip:
+    - dash
+    - dash-renderer
+    - dash-core-components
+    - dash-html-components
+    - gunicorn
+    - plotly
+    - numpy
+    - pandas
+    - scikit-learn
