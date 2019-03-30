@@ -19,71 +19,46 @@ server = app.server
 
 # Load data
 df = pd.read_csv('computer_security.csv', parse_dates=['date'])
-# temporarily filter out massive outlier
-df = df.loc[df.f < 250_000]
-ips = [df.loc[df.l_ipn == i] for i in df.l_ipn.unique()]
+df = df.loc[df.f < 250_000] # temporarily filter out massive outlier
+gbs = [sum_by_date(df.loc[df.l_ipn == i]) for i in df.l_ipn.unique()]
 
 
-def serve_layout():
-    layout = html.Div([
-             # Interval Component
-             dcc.Interval(id='interval',
-                          n_intervals=0,
-                          interval=1_000,
-                          max_intervals=df.date.nunique() // 3),
+app.layout = html.Div([
 
-             # Div containing graphs.
-             html.Div(id='g1')
-    ])
+        # Dropdown
+        dcc.Dropdown(id='dropdown',
+                     options=[dict(label=f'IP {i:<10}', value=i)
+                              for i in range(1, 11)],
+                     value=list(range(1, 11)),
+                     multi=True
+        ),
 
-    return layout
+        # Interval Component
+        dcc.Interval(id='interval',
+                     n_intervals=0,
+                     interval=1_000,
+                     max_intervals=df.date.nunique() // 3),
 
-
-app.layout = serve_layout
-
-# app.layout = html.Div([
-#
-#     # Interval Component
-#     dcc.Interval(id='interval',
-#                  n_intervals=0,
-#                  interval=1_000,
-#                  max_intervals=df.date.nunique() // 3),
-#
-#     # Div containing graphs.
-#     html.Div(id='g1')
-#
-# ])
+        # Div containing graphs.
+        html.Div(id='g1')
+])
 
 
 @app.callback(Output('g1', 'children'),
-              [Input('interval', 'n_intervals')])
-def update_g1(n_intervals):
-    # gb = sum_by_date(df).head(n_intervals*7)
-    # x = gb.index
-    # y = gb.values
-    #
-    # trace = go.Scatter(
-    #     x=x,
-    #     y=y,
-    #     fill='tozeroy'
-    # )
-    #
-    # graph = dcc.Graph(
-    #     figure=go.Figure(data=[trace])
-    # )
-    #
-    # return graph
-
+              [Input('interval', 'n_intervals'),
+               Input('dropdown', 'value')])
+def update_g1(n_intervals, selections):
     interval_scalar = 3
+    max_idx = n_intervals * interval_scalar
     graphs = []
-    for i, ip in enumerate(ips, 1):
-        gb = sum_by_date(ip).head(n_intervals*interval_scalar)
-        x = gb.index
-        y = gb.values
+    # for i, ip in enumerate(ips, 1):
+    #     gb = sum_by_date(ip).head(n_intervals*interval_scalar)
 
-        # color = 'green'
-        # if y.max() > (1 + y.min()) * 100:
-        #     color = 'red'
+    # for i, gb in enumerate(gbs, 1):
+    for i in selections:
+        gb = gbs[i-1]
+        x = gb.head(max_idx).index
+        y = gb.head(max_idx).values
 
         color = 'green'
         traces = [go.Scatter(
@@ -111,6 +86,7 @@ def update_g1(n_intervals):
                             )
             traces.append(trace2)
 
+        # Create layout dictionary to pass to Graph object.
         layout = dict(title=f'IP {i}',
                       height=400,
                       xaxis={'title': 'Date'},
