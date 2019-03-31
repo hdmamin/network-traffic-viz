@@ -18,9 +18,19 @@ scaler = RobustScaler()
 df = pd.read_csv('computer_security.csv', parse_dates=['date'])
 gb = df.groupby(['l_ipn', 'date']).f.sum()
 gbs = [pd.DataFrame(gb[i]) for i in range(10)]
+
+# Create slice indices for plotting many traces. Use step+1 so there are no
+# gaps between traces.
+slices = []
+outlier_idx = []
 for g in gbs:
     g['scaled'] = scaler.fit_transform(g[['f']])
     g['prev_ratio'] = g.f / g.f.shift(1, fill_value=np.inf)
+    slice_ = [slice(i, i + STEP + 1) for i in range(0, g.shape[0], STEP)]
+    idx = [any((g.iloc[s].scaled > 2.25) & (g.iloc[s].prev_ratio > 10))
+           for s in slice_]
+    slices.append(slice_)
+    outlier_idx.append(idx)
 
 app.layout = html.Div([
 
@@ -28,8 +38,7 @@ app.layout = html.Div([
         dcc.Dropdown(id='dropdown',
                      options=[dict(label=f'IP {i:<10}', value=i)
                               for i in range(10)],
-                     # value=list(range(1, 11)),
-                     value=[0, 1],
+                     value=[8, 9],
                      multi=True
                      ),
 
@@ -55,34 +64,24 @@ def update_g1(n_intervals, selections):
     # Generate plot for each ip selected from dropdown.
     for i in selections:
         g = gbs[i].head(max_idx)
-        x = g.index
-        y = g.f
+        line_colors = ['rgba(85, 191, 63, 1)', 'rgba(193, 66, 66, 1)']
+        colors = ['rgba(85, 191, 63, 0.75)', 'rgba(193, 66, 66, .8)']
 
-        color = 'green'
-        traces = [go.Scatter(
-                            x=x,
-                            y=y,
-                            fill='tozeroy',
-                            mode='lines',
-                            line={'width': 3,
-                                  'color': color}
-                            )]
-
-        # Detect outliers and change color.
-        g_tail = g.tail(STEP)
-        if any((g_tail.scaled > 1.5) & (g_tail.prev_ratio > 10)):
-            line_color = 'rgba(193, 66, 66, 1)'
-            fill_color = 'rgba(193, 66, 66, .8)'
-            trace2 = go.Scatter(
-                            x=x[-STEP:],
-                            y=y[-STEP:],
-                            fill='tozeroy',
-                            mode='lines',
-                            line={'width': 3,
-                                  'color': line_color},
-                            fillcolor=fill_color
-                            )
-            traces.append(trace2)
+        # Generate plot traces.
+        traces = []
+        for s, c in zip(slices[i], outlier_idx[i]):
+            df_slice = g.iloc[s]
+            trace = go.Scatter(
+                       name=None,
+                       x=df_slice.index,
+                       y=df_slice.f,
+                       fill='tozeroy',
+                       mode='lines',
+                       fillcolor=colors[c],
+                       line={'width': 3,
+                             'color': line_colors[c]}
+                       )
+            traces.append(trace)
 
         # Create layout dictionary to pass to Graph object.
         layout = dict(title=f'IP {i}',
