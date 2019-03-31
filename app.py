@@ -76,9 +76,6 @@ def update_g1(n_intervals, selections):
                         hoverinfo='y',
                         hoverlabel=dict(bgcolor='white',
                                         font={'color': 'black'}),
-                        # mode='lines',
-                        # line={'width': 4,
-                        #       'color': line_colors[1]}
                         )
 
         trace_neg = go.Scatter(
@@ -118,6 +115,7 @@ def update_g1(n_intervals, selections):
         if k % 2 == 1:
             output.append(row)
     return output
+
 
 if __name__ == '__main__':
     app.run_server(port=5000, debug=True)
