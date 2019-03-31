@@ -91,8 +91,7 @@ def update_g1(n_intervals, selections):
                              'color': line_colors[0]}
                        )
 
-        traces.append(trace_all)
-        traces.append(trace_neg)
+        traces.extend([trace_all, trace_neg])
 
         # Create layout dictionary to pass to Graph object.
         layout = dict(title=f'IP {i}',
