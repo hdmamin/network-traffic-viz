@@ -9,10 +9,11 @@ from sklearn.preprocessing import RobustScaler
 
 
 CSS = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+STEP = 3
 app = dash.Dash(external_stylesheets=CSS)
 server = app.server
 
-# Load and process data.
+# Load data and group by IP, then create features to identify outliers.
 scaler = RobustScaler()
 df = pd.read_csv('computer_security.csv', parse_dates=['date'])
 gb = df.groupby(['l_ipn', 'date']).f.sum()
@@ -36,7 +37,7 @@ app.layout = html.Div([
         dcc.Interval(id='interval',
                      n_intervals=0,
                      interval=1_000,
-                     max_intervals=np.ceil(df.date.nunique() / 3)
+                     max_intervals=np.ceil(df.date.nunique() / STEP)
                      ),
 
         # Div containing graphs.
@@ -48,8 +49,7 @@ app.layout = html.Div([
               [Input('interval', 'n_intervals'),
                Input('dropdown', 'value')])
 def update_g1(n_intervals, selections):
-    interval_scalar = 3
-    max_idx = n_intervals * interval_scalar
+    max_idx = n_intervals * STEP
     graphs = []
 
     # Generate plot for each ip selected from dropdown.
@@ -69,13 +69,13 @@ def update_g1(n_intervals, selections):
                             )]
 
         # Detect outliers and change color.
-        g_tail = g.tail(interval_scalar)
+        g_tail = g.tail(STEP)
         if any((g_tail.scaled > 1.5) & (g_tail.prev_ratio > 10)):
             line_color = 'rgba(193, 66, 66, 1)'
             fill_color = 'rgba(193, 66, 66, .8)'
             trace2 = go.Scatter(
-                            x=x[-interval_scalar:],
-                            y=y[-interval_scalar:],
+                            x=x[-STEP:],
+                            y=y[-STEP:],
                             fill='tozeroy',
                             mode='lines',
                             line={'width': 3,
