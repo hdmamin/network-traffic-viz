@@ -25,7 +25,9 @@ slices = []
 outlier_idx = []
 for g in gbs:
     g['scaled'] = scaler.fit_transform(g[['f']])
-    g['prev_ratio'] = g.f / g.f.shift(1, fill_value=np.inf)
+    g['prev_scaled'] = g.scaled.shift(1, 0)
+    g['prev'] = g.f.shift(1, fill_value=np.inf)
+    g['prev_ratio'] = g.f / g.prev
     slice_ = [slice(i, i + STEP + 1) for i in range(0, g.shape[0], STEP)]
     idx = [any((g.iloc[s].scaled > 2.25) & (g.iloc[s].prev_ratio > 10))
            for s in slice_]
@@ -38,7 +40,7 @@ app.layout = html.Div([
         dcc.Dropdown(id='dropdown',
                      options=[dict(label=f'IP {i:<10}', value=i)
                               for i in range(10)],
-                     value=[8, 9],
+                     value=[6, 7, 8, 9],
                      multi=True
                      ),
 
@@ -65,23 +67,57 @@ def update_g1(n_intervals, selections):
     for i in selections:
         g = gbs[i].head(max_idx)
         line_colors = ['rgba(85, 191, 63, 1)', 'rgba(193, 66, 66, 1)']
-        colors = ['rgba(85, 191, 63, 0.75)', 'rgba(193, 66, 66, .8)']
+        colors = ['rgba(85, 191, 63, 1)', 'rgba(193, 66, 66, 1)']
 
         # Generate plot traces.
         traces = []
-        for s, c in zip(slices[i], outlier_idx[i]):
-            df_slice = g.iloc[s]
-            trace = go.Scatter(
-                       name=None,
-                       x=df_slice.index,
-                       y=df_slice.f,
+        # for s, c in zip(slices[i], outlier_idx[i]):
+        #     df_slice = g.iloc[s]
+        #     trace = go.Scatter(
+        #                x=df_slice.index,
+        #                y=df_slice.f,
+        #                fill='tozeroy',
+        #                mode='lines',
+        #                fillcolor=colors[c],
+        #                hoverinfo='y',
+        #                line={'width': 3,
+        #                      'color': line_colors[c]}
+        #                )
+        #     traces.append(trace)
+
+        # TESTING
+        tmp_neg = g.where(g.scaled <= 2.25, None)
+        # tmp_pos = g.where((g.scaled > 2.25) | (g.prev_scaled > 2.25), None)
+        tmp_pos = g.where((g.scaled > 2.25) & (g.prev_ratio > 10), None)
+        print('tmp_pos', tmp_pos.notnull().sum())
+
+        tmp = go.Scatter(
+                        x=g.index,
+                        y=g.f,
+                        fill='tonexty',
+                        fillcolor=colors[1],
+                        mode='lines',
+                        connectgaps=False,
+                        hoverinfo='y',
+                        line={'width': 3,
+                              'color': line_colors[1]}
+                        )
+
+        tmp2 = go.Scatter(
+                       x=tmp_neg.index,
+                       y=tmp_neg.f,
                        fill='tozeroy',
+                       fillcolor=colors[0],
                        mode='lines',
-                       fillcolor=colors[c],
+                       connectgaps=False,
+                       hoverinfo='y',
                        line={'width': 3,
-                             'color': line_colors[c]}
+                             'color': line_colors[0]}
                        )
-            traces.append(trace)
+
+        traces.append(tmp)
+        traces.append(tmp2)
+        # END TESTING
 
         # Create layout dictionary to pass to Graph object.
         layout = dict(title=f'IP {i}',
@@ -97,8 +133,17 @@ def update_g1(n_intervals, selections):
         )
 
         graphs.append(graph)
-    return graphs
+    # return graphs
 
+    # TESTING
+    output = []
+    for k, graph in enumerate(graphs):
+        if k % 2 == 0:
+            row = html.Div([], className='row')
+        row.children.append(html.Div(graph, className='six columns'))
+        if k % 2 == 1:
+            output.append(row)
+    return output
 
 if __name__ == '__main__':
     app.run_server(port=5000, debug=True)
