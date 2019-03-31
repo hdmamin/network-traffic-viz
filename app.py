@@ -14,7 +14,16 @@ server = app.server
 
 # Load and process data.
 df = pd.read_csv('computer_security.csv', parse_dates=['date'])
-gbs = df.groupby(['l_ipn', 'date']).f.sum()
+# gbs = df.groupby(['l_ipn', 'date']).f.sum()
+
+# TESTING
+scaler = RobustScaler()
+gb = df.groupby(['l_ipn', 'date']).f.sum()
+gbs = [pd.DataFrame(gb[i]) for i in range(10)]
+for g in gbs:
+    g['scaled'] = scaler.fit_transform(g[['f']])
+    g['prev_ratio'] = g.f / g.f.shift(1, fill_value=np.inf)
+# TESTING
 
 app.layout = html.Div([
 
@@ -48,9 +57,9 @@ def update_g1(n_intervals, selections):
 
     # Generate plot for each ip selected from dropdown.
     for i in selections:
-        gb = gbs[i]
-        x = gb.head(max_idx).index
-        y = gb.head(max_idx).values
+        g = gbs[i].head(max_idx)
+        x = g.index
+        y = g.f
 
         color = 'green'
         traces = [go.Scatter(
@@ -63,7 +72,10 @@ def update_g1(n_intervals, selections):
                             )]
 
         # Detect outliers and change color.
-        if y[-interval_scalar:].max() > (10 + y.min()) * 100:
+        # if y[-interval_scalar:].max() > (10 + y.min()) * 100:
+        g_tail = g.tail(interval_scalar)
+        if any((g_tail.scaled > 3) & (g_tail.prev_ratio > 10)):
+            print('OUTLIER DETECTED')
             line_color = 'rgba(193, 66, 66, 1)'
             fill_color = 'rgba(193, 66, 66, .8)'
             trace2 = go.Scatter(
