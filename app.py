@@ -9,17 +9,24 @@ from sklearn.preprocessing import RobustScaler
 
 
 CSS = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+STEP = 3
 app = dash.Dash(external_stylesheets=CSS)
 server = app.server
 
-# Load and process data.
+# Load data and group by IP, then create features to identify outliers.
 scaler = RobustScaler()
 df = pd.read_csv('computer_security.csv', parse_dates=['date'])
 gb = df.groupby(['l_ipn', 'date']).f.sum()
 gbs = [pd.DataFrame(gb[i]) for i in range(10)]
+
+# Create slice indices for plotting many traces. Use step+1 so there are no
+# gaps between traces.
+slices = []
 for g in gbs:
     g['scaled'] = scaler.fit_transform(g[['f']])
     g['prev_ratio'] = g.f / g.f.shift(1, fill_value=np.inf)
+    slice_ = [slice(i, i + STEP + 1) for i in range(0, g.shape[0], STEP)]
+    slices.append(slice_)
 
 app.layout = html.Div([
 
@@ -36,7 +43,7 @@ app.layout = html.Div([
         dcc.Interval(id='interval',
                      n_intervals=0,
                      interval=1_000,
-                     max_intervals=np.ceil(df.date.nunique() / 3)
+                     max_intervals=np.ceil(df.date.nunique() / STEP)
                      ),
 
         # Div containing graphs.
@@ -48,41 +55,60 @@ app.layout = html.Div([
               [Input('interval', 'n_intervals'),
                Input('dropdown', 'value')])
 def update_g1(n_intervals, selections):
-    interval_scalar = 3
-    max_idx = n_intervals * interval_scalar
+    max_idx = n_intervals * STEP
     graphs = []
 
     # Generate plot for each ip selected from dropdown.
     for i in selections:
         g = gbs[i].head(max_idx)
-        x = g.index
-        y = g.f
+        # x = g.index
+        # y = g.f
 
-        color = 'green'
-        traces = [go.Scatter(
-                            x=x,
-                            y=y,
-                            fill='tozeroy',
-                            mode='lines',
-                            line={'width': 3,
-                                  'color': color}
-                            )]
+        line_colors = ['rgba(85, 191, 63, 1)', 'rgba(193, 66, 66, 1)']
+        colors = ['rgba(85, 191, 63, 0.75)', 'rgba(193, 66, 66, .8)']
+        # traces = [go.Scatter(
+        #                     x=g.iloc[slice_].index,
+        #                     y=g.iloc[slice_]['f'],
+        #                     fill='tozeroy',
+        #                     mode='lines',
+        #                     fillcolor=colors[j],
+        #                     line={'width': 3,
+        #                           'color': line_colors[j]}
+        #                     ) for j, slice_ in zip(outlier_idx[i], slices[i])]
 
-        # Detect outliers and change color.
-        g_tail = g.tail(interval_scalar)
-        if any((g_tail.scaled > 1.5) & (g_tail.prev_ratio > 10)):
-            line_color = 'rgba(193, 66, 66, 1)'
-            fill_color = 'rgba(193, 66, 66, .8)'
-            trace2 = go.Scatter(
-                            x=x[-interval_scalar:],
-                            y=y[-interval_scalar:],
-                            fill='tozeroy',
-                            mode='lines',
-                            line={'width': 3,
-                                  'color': line_color},
-                            fillcolor=fill_color
-                            )
-            traces.append(trace2)
+        traces = []
+        for s in slices[i]:
+            current_slice = g.iloc[s]
+            x = current_slice.index
+            y = current_slice.f
+            c_idx = any((current_slice.scaled > 1.5) &
+                        (current_slice.prev_ratio > 10))
+            trace = go.Scatter(
+                       x=x,
+                       y=y,
+                       fill='tozeroy',
+                       mode='lines',
+                       fillcolor=colors[c_idx],
+                       line={'width': 3,
+                             'color': line_colors[c_idx]}
+                       )
+            traces.append(trace)
+
+        # # Detect outliers and change color.
+        # g_tail = g.tail(interval_scalar)
+        # if any((g_tail.scaled > 1.5) & (g_tail.prev_ratio > 10)):
+        #     line_color = 'rgba(193, 66, 66, 1)'
+        #     fill_color = 'rgba(193, 66, 66, .8)'
+        #     trace2 = go.Scatter(
+        #                     x=x[-interval_scalar:],
+        #                     y=y[-interval_scalar:],
+        #                     fill='tozeroy',
+        #                     mode='lines',
+        #                     line={'width': 3,
+        #                           'color': line_color},
+        #                     fillcolor=fill_color
+        #                     )
+        #     traces.append(trace2)
 
         # Create layout dictionary to pass to Graph object.
         layout = dict(title=f'IP {i}',
