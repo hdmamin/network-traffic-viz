@@ -61,21 +61,8 @@ def update_g1(n_intervals, selections):
     # Generate plot for each ip selected from dropdown.
     for i in selections:
         g = gbs[i].head(max_idx)
-        # x = g.index
-        # y = g.f
-
         line_colors = ['rgba(85, 191, 63, 1)', 'rgba(193, 66, 66, 1)']
         colors = ['rgba(85, 191, 63, 0.75)', 'rgba(193, 66, 66, .8)']
-        # traces = [go.Scatter(
-        #                     x=g.iloc[slice_].index,
-        #                     y=g.iloc[slice_]['f'],
-        #                     fill='tozeroy',
-        #                     mode='lines',
-        #                     fillcolor=colors[j],
-        #                     line={'width': 3,
-        #                           'color': line_colors[j]}
-        #                     ) for j, slice_ in zip(outlier_idx[i], slices[i])]
-
         traces = []
         for s in slices[i]:
             current_slice = g.iloc[s]
@@ -93,22 +80,6 @@ def update_g1(n_intervals, selections):
                              'color': line_colors[c_idx]}
                        )
             traces.append(trace)
-
-        # # Detect outliers and change color.
-        # g_tail = g.tail(interval_scalar)
-        # if any((g_tail.scaled > 1.5) & (g_tail.prev_ratio > 10)):
-        #     line_color = 'rgba(193, 66, 66, 1)'
-        #     fill_color = 'rgba(193, 66, 66, .8)'
-        #     trace2 = go.Scatter(
-        #                     x=x[-interval_scalar:],
-        #                     y=y[-interval_scalar:],
-        #                     fill='tozeroy',
-        #                     mode='lines',
-        #                     line={'width': 3,
-        #                           'color': line_color},
-        #                     fillcolor=fill_color
-        #                     )
-        #     traces.append(trace2)
 
         # Create layout dictionary to pass to Graph object.
         layout = dict(title=f'IP {i}',
