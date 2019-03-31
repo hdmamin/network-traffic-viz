@@ -5,31 +5,25 @@ from dash.dependencies import Input, Output
 import numpy as np
 import pandas as pd
 import plotly.graph_objs as go
-from sklearn.preprocessing import StandardScaler
-
-
-def sum_by_date(df):
-    """Get total flows by date."""
-    return df.groupby('date').f.sum()
+from sklearn.preprocessing import RobustScaler
 
 
 CSS = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(external_stylesheets=CSS)
 server = app.server
 
-# Load data
+# Load and process data.
 df = pd.read_csv('computer_security.csv', parse_dates=['date'])
-df = df.loc[df.f < 250_000] # temporarily filter out massive outlier
-gbs = [sum_by_date(df.loc[df.l_ipn == i]) for i in df.l_ipn.unique()]
-
+gbs = df.groupby(['l_ipn', 'date']).f.sum()
 
 app.layout = html.Div([
 
         # Dropdown
         dcc.Dropdown(id='dropdown',
                      options=[dict(label=f'IP {i:<10}', value=i)
-                              for i in range(1, 11)],
-                     value=list(range(1, 11)),
+                              for i in range(10)],
+                     # value=list(range(1, 11)),
+                     value=[0, 1],
                      multi=True
         ),
 
@@ -51,12 +45,10 @@ def update_g1(n_intervals, selections):
     interval_scalar = 3
     max_idx = n_intervals * interval_scalar
     graphs = []
-    # for i, ip in enumerate(ips, 1):
-    #     gb = sum_by_date(ip).head(n_intervals*interval_scalar)
 
-    # for i, gb in enumerate(gbs, 1):
+    # Generate plot for each ip selected from dropdown.
     for i in selections:
-        gb = gbs[i-1]
+        gb = gbs[i]
         x = gb.head(max_idx).index
         y = gb.head(max_idx).values
 
@@ -71,13 +63,12 @@ def update_g1(n_intervals, selections):
                             )]
 
         # Detect outliers and change color.
-        recent = 2*interval_scalar
-        if y[-recent:].max() > (10 + y.min()) * 100:
+        if y[-interval_scalar:].max() > (10 + y.min()) * 100:
             line_color = 'rgba(193, 66, 66, 1)'
             fill_color = 'rgba(193, 66, 66, .8)'
             trace2 = go.Scatter(
-                            x=x[-recent:],
-                            y=y[-recent:],
+                            x=x[-interval_scalar:],
+                            y=y[-interval_scalar:],
                             fill='tozeroy',
                             mode='lines',
                             line={'width': 3,
