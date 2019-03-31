@@ -22,11 +22,15 @@ gbs = [pd.DataFrame(gb[i]) for i in range(10)]
 # Create slice indices for plotting many traces. Use step+1 so there are no
 # gaps between traces.
 slices = []
+outlier_idx = []
 for g in gbs:
     g['scaled'] = scaler.fit_transform(g[['f']])
     g['prev_ratio'] = g.f / g.f.shift(1, fill_value=np.inf)
     slice_ = [slice(i, i + STEP + 1) for i in range(0, g.shape[0], STEP)]
+    idx = [any((g.iloc[s].scaled > 2.25) & (g.iloc[s].prev_ratio > 10))
+           for s in slice_]
     slices.append(slice_)
+    outlier_idx.append(idx)
 
 app.layout = html.Div([
 
@@ -34,8 +38,7 @@ app.layout = html.Div([
         dcc.Dropdown(id='dropdown',
                      options=[dict(label=f'IP {i:<10}', value=i)
                               for i in range(10)],
-                     # value=list(range(1, 11)),
-                     value=[0, 1],
+                     value=[8, 9],
                      multi=True
                      ),
 
@@ -63,21 +66,20 @@ def update_g1(n_intervals, selections):
         g = gbs[i].head(max_idx)
         line_colors = ['rgba(85, 191, 63, 1)', 'rgba(193, 66, 66, 1)']
         colors = ['rgba(85, 191, 63, 0.75)', 'rgba(193, 66, 66, .8)']
+
+        # Generate plot traces.
         traces = []
-        for s in slices[i]:
-            current_slice = g.iloc[s]
-            x = current_slice.index
-            y = current_slice.f
-            c_idx = any((current_slice.scaled > 1.5) &
-                        (current_slice.prev_ratio > 10))
+        for s, c in zip(slices[i], outlier_idx[i]):
+            df_slice = g.iloc[s]
             trace = go.Scatter(
-                       x=x,
-                       y=y,
+                       name=None,
+                       x=df_slice.index,
+                       y=df_slice.f,
                        fill='tozeroy',
                        mode='lines',
-                       fillcolor=colors[c_idx],
+                       fillcolor=colors[c],
                        line={'width': 3,
-                             'color': line_colors[c_idx]}
+                             'color': line_colors[c]}
                        )
             traces.append(trace)
 
