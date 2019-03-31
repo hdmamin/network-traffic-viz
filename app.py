@@ -13,17 +13,13 @@ app = dash.Dash(external_stylesheets=CSS)
 server = app.server
 
 # Load and process data.
-df = pd.read_csv('computer_security.csv', parse_dates=['date'])
-# gbs = df.groupby(['l_ipn', 'date']).f.sum()
-
-# TESTING
 scaler = RobustScaler()
+df = pd.read_csv('computer_security.csv', parse_dates=['date'])
 gb = df.groupby(['l_ipn', 'date']).f.sum()
 gbs = [pd.DataFrame(gb[i]) for i in range(10)]
 for g in gbs:
     g['scaled'] = scaler.fit_transform(g[['f']])
     g['prev_ratio'] = g.f / g.f.shift(1, fill_value=np.inf)
-# TESTING
 
 app.layout = html.Div([
 
@@ -34,13 +30,14 @@ app.layout = html.Div([
                      # value=list(range(1, 11)),
                      value=[0, 1],
                      multi=True
-        ),
+                     ),
 
         # Interval Component
         dcc.Interval(id='interval',
                      n_intervals=0,
                      interval=1_000,
-                     max_intervals=df.date.nunique() // 3),
+                     max_intervals=np.ceil(df.date.nunique() / 3)
+                     ),
 
         # Div containing graphs.
         html.Div(id='g1')
@@ -72,10 +69,8 @@ def update_g1(n_intervals, selections):
                             )]
 
         # Detect outliers and change color.
-        # if y[-interval_scalar:].max() > (10 + y.min()) * 100:
         g_tail = g.tail(interval_scalar)
-        if any((g_tail.scaled > 3) & (g_tail.prev_ratio > 10)):
-            print('OUTLIER DETECTED')
+        if any((g_tail.scaled > 1.5) & (g_tail.prev_ratio > 10)):
             line_color = 'rgba(193, 66, 66, 1)'
             fill_color = 'rgba(193, 66, 66, .8)'
             trace2 = go.Scatter(
