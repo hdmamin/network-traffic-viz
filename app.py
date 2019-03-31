@@ -24,9 +24,9 @@ gbs = [pd.DataFrame(gb[i]) for i in range(10)]
 outlier_idx = []
 for g in gbs:
     g['scaled'] = scaler.fit_transform(g[['f']])
-    g['prev_scaled'] = g.scaled.shift(1, 0)
-    g['prev'] = g.f.shift(1, fill_value=np.inf)
-    g['prev_ratio'] = g.f / g.prev
+    g['shift_scaled'] = g.scaled.shift(1, 0)
+    g['ratio'] = g.f / g.f.shift(1, fill_value=np.inf)
+    g['shift_ratio'] = g.ratio.shift(1, fill_value=np.inf)
 
 app.layout = html.Div([
 
@@ -60,23 +60,25 @@ def update_g1(n_intervals, selections):
     # Generate plot for each ip selected from dropdown.
     for i in selections:
         g = gbs[i].head(max_idx)
-        line_colors = ['rgba(85, 191, 63, 1)', 'rgba(193, 66, 66, 1)']
         colors = ['rgba(85, 191, 63, 1)', 'rgba(193, 66, 66, 1)']
 
         # Generate plot traces.
         traces = []
-        df_neg = g.where(((g.scaled <= 2.25) | (g.prev_ratio <= 10)) &
-                         (g.prev_scaled <= 2.25), None)
+        df_neg = g.where(((g.scaled <= 2.25) | (g.ratio <= 10)) &
+                         ((g.shift_scaled <= 2.25) | (g.shift_ratio <= 10)),
+                         None)
         trace_all = go.Scatter(
                         x=g.index,
                         y=g.f,
                         fill='tonexty',
                         fillcolor=colors[1],
-                        mode='lines',
-                        connectgaps=False,
+                        mode='none',
                         hoverinfo='y',
-                        line={'width': 3,
-                              'color': line_colors[1]}
+                        hoverlabel=dict(bgcolor='white',
+                                        font={'color': 'black'}),
+                        # mode='lines',
+                        # line={'width': 4,
+                        #       'color': line_colors[1]}
                         )
 
         trace_neg = go.Scatter(
@@ -84,21 +86,20 @@ def update_g1(n_intervals, selections):
                        y=df_neg.f,
                        fill='tozeroy',
                        fillcolor=colors[0],
-                       mode='lines',
+                       mode='none',
+                       hoverinfo='none',
                        connectgaps=False,
-                       hoverinfo='y',
-                       line={'width': 3,
-                             'color': line_colors[0]}
                        )
 
         traces.extend([trace_all, trace_neg])
 
         # Create layout dictionary to pass to Graph object.
         layout = dict(title=f'IP {i}',
-                      height=400,
+                      height=350,
                       xaxis={'title': 'Date'},
                       yaxis={'title': 'Total Flows'},
-                      showlegend=False
+                      showlegend=False,
+                      margin=dict(l=70, r=30, t=70, b=40)
                       )
 
         graph = dcc.Graph(
