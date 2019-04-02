@@ -63,7 +63,6 @@ def update_g1(n_intervals, selections):
         colors = ['rgba(85, 191, 63, 1)', 'rgba(193, 66, 66, 1)']
 
         # Generate plot traces.
-        traces = []
         df_neg = g.where(((g.scaled <= 2.25) | (g.ratio <= 10)) &
                          ((g.shift_scaled <= 2.25) | (g.shift_ratio <= 10)),
                          None)
@@ -88,7 +87,7 @@ def update_g1(n_intervals, selections):
                        connectgaps=False,
                        )
 
-        traces.extend([trace_all, trace_neg])
+        traces = [trace_all, trace_neg]
 
         # Create layout dictionary to pass to Graph object.
         layout = dict(title=f'IP {i}',
