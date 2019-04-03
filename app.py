@@ -13,14 +13,13 @@ STEP = 3
 app = dash.Dash(external_stylesheets=CSS)
 server = app.server
 
-# Load data and group by IP, then create features to identify outliers.
+# Load data and group by IP.
 scaler = RobustScaler()
 df = pd.read_csv('computer_security.csv', parse_dates=['date'])
 gb = df.groupby(['l_ipn', 'date']).f.sum()
 gbs = [pd.DataFrame(gb[i]) for i in range(10)]
 
-# Create slice indices for plotting many traces. Use step+1 so there are no
-# gaps between traces.
+# Create features to identify outliers.
 outlier_idx = []
 for g in gbs:
     g['scaled'] = scaler.fit_transform(g[['f']])
@@ -30,7 +29,7 @@ for g in gbs:
 
 app.layout = html.Div([
 
-        # Dropdown
+        # Dropdown menu.
         dcc.Dropdown(id='dropdown',
                      options=[dict(label=f'IP {i:<10}', value=i)
                               for i in range(10)],
@@ -38,7 +37,7 @@ app.layout = html.Div([
                      multi=True
                      ),
 
-        # Interval Component
+        # Interval Component for live updates.
         dcc.Interval(id='interval',
                      n_intervals=0,
                      interval=1_000,
@@ -102,7 +101,6 @@ def update_g1(n_intervals, selections):
             figure=go.Figure(data=traces,
                              layout=layout)
         )
-
         graphs.append(graph)
 
     # Format html output.
